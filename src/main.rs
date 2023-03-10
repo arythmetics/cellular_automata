@@ -16,12 +16,38 @@ fn main() {
 #[derive(Clone, Copy, Debug)]
 struct Cell {
     value: u8,
-    width: usize,
-    height: usize,
-    depth: usize,
+    cell_position: CellPosition,
 }
 
-#[derive(Debug, Component)]
+#[derive(Clone, Copy, Debug)]
+struct CellPosition {
+    x: usize,
+    y: usize,
+    z: usize,
+}
+
+impl Cell {
+    fn find_neighbours(self) -> Vec<CellPosition> {
+        let mut neighbour_positions: Vec<CellPosition> = vec![];
+
+        for x in (self.cell_position.x - 1)..(self.cell_position.x + 1) {
+            for y in (self.cell_position.y - 1)..(self.cell_position.y + 1) {
+                for z in (self.cell_position.z - 1)..(self.cell_position.z + 1) {
+                    let cell_position = CellPosition {
+                        x: x,
+                        y: y,
+                        z: z,
+                    };
+                    neighbour_positions.push(cell_position)
+                }
+            }
+        }
+
+        return neighbour_positions
+    }
+}
+
+#[derive(Debug, Component, Clone)]
 struct Cells {
     cells: Vec<Cell>,
 }
@@ -34,7 +60,7 @@ impl Cells {
         for x in 0..width {
             for y in 0..height {
                 for z in 0..depth {
-                    cells.push(Cell { value: 0, width: x, height: y, depth: z })
+                    cells.push(Cell { value: 0, cell_position: CellPosition { x, y, z }})
                 }
             }
         }
@@ -81,7 +107,14 @@ fn setup(
 }
 
 fn update(mut query: Query<&mut Cells>) {
-    let cells = query.single_mut();
+    let cells = query.get_single_mut();
 
+    match cells {
+        Ok(cells) => {
+            for cell in &cells.cells {
+                println!("Cell: {:#?}, Neighbours: {:#?}", cell.cell_position, cell.find_neighbours())
+            }
+        }
+        Err(_) => panic!("Cannot load cells"),
+    }
 }
-
