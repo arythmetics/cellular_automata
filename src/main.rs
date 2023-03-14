@@ -1,8 +1,10 @@
 mod cells;
 mod utils;
 
+use std::collections::HashMap;
+
 use bevy::{prelude::*};
-use cells::CellsPlugin;
+use bevy::math::IVec3;
 
 
 fn main() {
@@ -19,7 +21,7 @@ struct Cell {
     cell_position: CellPosition,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct CellPosition {
     x: usize,
     y: usize,
@@ -27,47 +29,52 @@ struct CellPosition {
 }
 
 impl Cell {
-    fn find_neighbours(self) -> Vec<CellPosition> {
-        let mut neighbour_positions: Vec<CellPosition> = vec![];
+    
+}
 
-        for x in (self.cell_position.x - 1)..(self.cell_position.x + 1) {
-            for y in (self.cell_position.y - 1)..(self.cell_position.y + 1) {
-                for z in (self.cell_position.z - 1)..(self.cell_position.z + 1) {
+#[derive(Debug, Component, Clone)]
+struct Cells {
+    cell_index: HashMap<CellPosition, Cell>,
+    cell_map: IVec3,
+}
+
+impl Cells {
+    fn new(width: usize, height: usize, depth: usize) -> Self {
+        let size: usize = width * height * depth;
+        let mut cells = HashMap::with_capacity(size);
+
+        for x in 0..width {
+            for y in 0..height {
+                for z in 0..depth {
+                    cells.insert(CellPosition { x, y, z }, Cell { value: 0, cell_position: CellPosition { x, y, z }});
+                }
+            }
+        }
+
+        let cell_map = IVec3 { x: width, y: height, z: size };
+
+        Self {
+            cell_index: cells,
+        }
+    }
+
+    fn find_neighbours(self, cell_position: &CellPosition) -> Vec<Cell> {
+        let mut neighbour_cells: Vec<Cell> = vec![];
+
+        for x in (cell_position.x - 1)..(cell_position.x + 1) {
+            for y in (cell_position.y - 1)..(cell_position.y + 1) {
+                for z in (cell_position.z - 1)..(cell_position.z + 1) {
                     let cell_position = CellPosition {
                         x: x,
                         y: y,
                         z: z,
                     };
-                    neighbour_positions.push(cell_position)
+                    let neighbour_cell = self.cell_index.get(&cell_position).unwrap().clone();
+                    neighbour_cells.push(neighbour_cell)
                 }
             }
         }
-
-        return neighbour_positions
-    }
-}
-
-#[derive(Debug, Component, Clone)]
-struct Cells {
-    cells: Vec<Cell>,
-}
-
-impl Cells {
-    fn new(width: usize, height: usize, depth: usize) -> Self {
-        let size = width * height * depth;
-        let mut cells = Vec::with_capacity(size);
-
-        for x in 0..width {
-            for y in 0..height {
-                for z in 0..depth {
-                    cells.push(Cell { value: 0, cell_position: CellPosition { x, y, z }})
-                }
-            }
-        }
-
-        Self {
-            cells,
-        }
+        return neighbour_cells
     }
 }
 
@@ -76,7 +83,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let cells = Cells::new(10, 10, 10);
+    let cell_map = Cells::new(10, 10, 10);
 
     commands.spawn(
         PbrBundle {
@@ -85,7 +92,7 @@ fn setup(
             transform: Transform::from_xyz(2.0, 0.0, 0.1),
             ..default()
         }
-    ).insert(cells);
+    ).insert(cell_map);
     
     commands.spawn(
         PointLightBundle {
@@ -111,8 +118,8 @@ fn update(mut query: Query<&mut Cells>) {
 
     match cells {
         Ok(cells) => {
-            for cell in &cells.cells {
-                println!("Cell: {:#?}, Neighbours: {:#?}", cell.cell_position, cell.find_neighbours())
+            for (position, _cell) in &cells.cell_index {
+                println!("Cell: {:#?}, Neighbours: {:#?}", position, cell_map.find_neighbours(&position))
             }
         }
         Err(_) => panic!("Cannot load cells"),
