@@ -18,64 +18,54 @@ fn main() {
 #[derive(Clone, Copy, Debug)]
 struct Cell {
     value: u8,
-    cell_position: CellPosition,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-struct CellPosition {
-    x: usize,
-    y: usize,
-    z: usize,
-}
-
-impl Cell {
-    
-}
-
-#[derive(Debug, Component, Clone)]
+#[derive(Debug, Component)]
 struct Cells {
-    cell_index: HashMap<CellPosition, Cell>,
-    cell_map: IVec3,
+    cell_index: HashMap<IVec3, Cell>,
+    cell_map: Vec<IVec3>,
 }
 
 impl Cells {
     fn new(width: usize, height: usize, depth: usize) -> Self {
         let size: usize = width * height * depth;
-        let mut cells = HashMap::with_capacity(size);
+        let mut cells: HashMap<IVec3, Cell> = HashMap::with_capacity(size);
+        let mut cell_map:Vec<IVec3> = vec![];
 
         for x in 0..width {
             for y in 0..height {
                 for z in 0..depth {
-                    cells.insert(CellPosition { x, y, z }, Cell { value: 0, cell_position: CellPosition { x, y, z }});
+                    let cell_position = IVec3 { x: x as i32, y: y as i32, z: z as i32 };
+                    cells.insert(cell_position, Cell { value: 0 });
+                    cell_map.push(cell_position);
                 }
             }
         }
-
-        let cell_map = IVec3 { x: width, y: height, z: size };
 
         Self {
             cell_index: cells,
+            cell_map: cell_map,
         }
     }
+}
 
-    fn find_neighbours(self, cell_position: &CellPosition) -> Vec<Cell> {
-        let mut neighbour_cells: Vec<Cell> = vec![];
+fn find_neighbours(cell_position: &IVec3, cell_index: &HashMap<IVec3, Cell>) -> Vec<(Cell, IVec3)> {
+    let mut neighbour_cells: Vec<(Cell, IVec3)> = vec![];
 
-        for x in (cell_position.x - 1)..(cell_position.x + 1) {
-            for y in (cell_position.y - 1)..(cell_position.y + 1) {
-                for z in (cell_position.z - 1)..(cell_position.z + 1) {
-                    let cell_position = CellPosition {
-                        x: x,
-                        y: y,
-                        z: z,
-                    };
-                    let neighbour_cell = self.cell_index.get(&cell_position).unwrap().clone();
-                    neighbour_cells.push(neighbour_cell)
-                }
+    for x in (cell_position.x - 1)..(cell_position.x + 1) {
+        for y in (cell_position.y - 1)..(cell_position.y + 1) {
+            for z in (cell_position.z - 1)..(cell_position.z + 1) {
+                let cell_position = IVec3 {
+                    x: x,
+                    y: y,
+                    z: z,
+                };
+                let neighbour_cell = cell_index.get(&cell_position).unwrap().clone();
+                neighbour_cells.push((neighbour_cell, cell_position))
             }
         }
-        return neighbour_cells
     }
+    return neighbour_cells
 }
 
 fn setup(
@@ -118,8 +108,8 @@ fn update(mut query: Query<&mut Cells>) {
 
     match cells {
         Ok(cells) => {
-            for (position, _cell) in &cells.cell_index {
-                println!("Cell: {:#?}, Neighbours: {:#?}", position, cell_map.find_neighbours(&position))
+            for position in &cells.cell_map {
+                println!("Cell: {:#?}, Neighbours: {:#?}", position, find_neighbours(&position, &cells.cell_index))
             }
         }
         Err(_) => panic!("Cannot load cells"),
